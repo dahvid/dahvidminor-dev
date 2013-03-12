@@ -35,6 +35,6 @@ core.*
 profile_info.py
 *_out_*
 ACL.build/*
-
+py2c_test
 
 
