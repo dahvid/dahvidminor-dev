@@ -51,10 +51,15 @@ DEALINGS IN THE SOFTWARE.
 #include <utility>
 #include <vector>
 #include <string>
-#include <tuple>
+#include <boost/fusion/tuple.hpp>
 #include <list>
 #include <map>
 
+
+#include "is_variant.hpp"
+
+using kmt::is_variant;
+using boost::fusion::tuple;
 
 //must discriminate between, vector, map, fusion::sequence and {string,double,long, bool}
 
@@ -80,7 +85,7 @@ struct is_map
 	{};
 
 template <class Key, class Mapped, class Pair, class Alloc>
-struct is_map<std::map<Key, Mapped, Pair, Alloc>> 
+struct is_map<std::map<Key, Mapped, Pair, Alloc> > 
     : mpl::true_
 	{};
 
@@ -90,7 +95,7 @@ struct is_vector
 	{};
 
 template <class T>
-struct is_vector<std::vector<T>> 
+struct is_vector<std::vector<T> > 
     : mpl::true_
 	{};
 
@@ -291,6 +296,18 @@ inline const char* getPyTypeString(const object& element)
 
 struct XValueError {};
 
+
+class variant_parser : public boost::static_visitor<>
+{
+public:
+	template<class T>
+	void operator()(const string& s)
+	{
+		
+	}
+}
+
+
 class value_parser
 {
 public:
@@ -299,6 +316,50 @@ public:
     {}
 
   template <class T>
+        typename enable_if<typename is_variant<T>::type>::type
+    operator() (T& c_object) const
+    { 
+    	/*
+    	//figure out what kind of variant it is
+    	extract<long> get_long(m_py_object);
+    	extract<double> get_double(m_py_object);
+    	extract<string> get_string(m_py_object);
+    	extract<list>   get_list(m_py_object);
+    	extract<dict>   get_dict(m_py_object);
+    	extract<tuple>   get_tuple(m_py_object);
+    	
+        if (get_long.check()) {
+             //extract only works if there is a lhs
+             c_object = get_long();
+        }
+        else if (get_double.check()) {
+             //extract only works if there is a lhs
+             c_object = get_double();
+         }
+        else if (get_string.check()) {
+             c_object = get_string();
+        }
+        else if (get_list.check()) {
+        	value_parser parse(get_list());
+        	parse(c_object);
+        }
+        else if (get_dict.check()) {
+        	value_parser parse(get_dict());
+        	parse(c_object);
+        }
+        else if (get_tuple.check()) {
+        	value_parser parse(get_tuple());
+        	parse(c_object);
+        }
+        else {
+            cerr << "found unknown variant type " << Py_TYPE(m_py_object.ptr())->tp_name << endl;
+            throw XValueError();
+        }
+        */
+        boost::apply_visitor(variant_parser(), c_object);
+    }
+
+  	template <class T>
         typename enable_if<typename fusion::traits::is_sequence<T>::type>::type
     operator() (T& c_object) const
     { 
@@ -310,8 +371,8 @@ public:
         make_fusion_from_tuple(get_tuple(), &c_object); 
     }
 
-    //check if mapped type is a vector
-    template <typename T>
+	    //check if mapped type is a vector
+	    template <typename T>
             typename enable_if<typename is_vector<T>::type>::type                                                                    
         operator() (T& c_object) const
         { 
@@ -320,8 +381,8 @@ public:
             	
         }
         
-    //check if mapped type is a map
-    template <typename T>
+	    //check if mapped type is a map
+	    template <typename T>
             typename enable_if<typename is_map<T>::type>::type                                                                    
         operator() (T& c_object) const
         { 
@@ -329,8 +390,8 @@ public:
 				throw XValueError();
         }
 
-    //check if mapped type is automatically convertable to python
-    template <typename T>
+	    //check if mapped type is automatically convertable to python
+	    template <typename T>
             typename enable_if<typename is_python_convertable<T>::type>::type
         operator() (T& c_object) const
         { 
@@ -716,7 +777,7 @@ class py2cpp {
 public:
 	//check if mapped type is fusion tuple
 	template <class T>
-		typename enable_if<typename fusion::traits::is_sequence<T>::type>::type
+		typename enable_if<typename fusion::traits::is_sequence<T>::type>::typec_object = extract<T>(m_py_object); 
 			operator() (const object& mPyObject, T* s) const
 				{ make_fusion_from_tuple(mPyObject, s); }
 

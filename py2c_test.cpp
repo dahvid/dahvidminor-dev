@@ -44,17 +44,54 @@ And within python:
 #include "py2cpp.hpp"
 #include <boost/fusion/container.hpp>
 #include <boost/fusion/sequence/comparison/not_equal_to.hpp>
+#include <boost/variant.hpp>
+#include <map>
 #include <iostream>
-#include <tuple>
+#include <boost/fusion/tuple.hpp>
+#include <vector>
+#include <algorithm>
+#include <boost/utility/value_init.hpp>
 
+//using namespace boost::python;
 namespace py = boost::python;
 namespace fu = boost::fusion;
+
 using  std::cerr;
+using  boost::variant;
 using  std::endl;
 using  std::cout;
 using  std::string;
 using  std::size_t;
-using  std::get;
+using  boost::get;
+using  std::map;
+using  std::vector;
+
+
+template<class Container>
+typename Container::value_type sum(const Container& con)
+{
+	typename Container::value_type init = boost::initialized_value;
+	typename Container::const_iterator v = con.begin();
+	for (;v != con.end(); ++v)
+	{
+		init += *v;
+	}
+};
+
+template<class T>
+struct Sum
+{
+	Sum(T* init) : init(init) {} T* init;
+	
+    template<typename U>
+    void operator()(U& t) const
+    {
+        *init += t;
+    }
+};
+
+//using boost::fusion::tuple;
+
 
 const char space = ' ';
 
@@ -75,7 +112,7 @@ int main(int argc, char* argv[])
 		{
 			typedef fu::vector<long, double, string> Triple;
 			Triple t(23, 3.1415, "wot");
-			tuple o;
+			py::tuple o;
 			cpp_2_py(t,&o);
 			//tuple o = make_tuple_from_fusion(t);
 			cout << "made tuple from fusion" << endl;
@@ -99,7 +136,7 @@ int main(int argc, char* argv[])
 			typedef fu::vector<long, double, string> Triple;
 			typedef fu::vector<long, Triple, string> Rtriple;
 			Rtriple r(45, Triple(23,3.23,"wot"),"wit");
-			tuple o;
+			py::tuple o;
 			cpp_2_py(r, &o);
 			//tuple o = make_tuple_from_fusion(r);
 			Rtriple empty;
@@ -167,7 +204,7 @@ int main(int argc, char* argv[])
 			ss.push_back(2.34);
 			ss.push_back(1.234);
 
-			std::vector<std::vector<double>> dd,ee;
+			std::vector<std::vector<double> > dd,ee;
 			dd.push_back(ss);
 			dd.push_back(ss);
 			//dd.push_back(std::vector<std::vector<doubl e>>());
@@ -211,7 +248,7 @@ int main(int argc, char* argv[])
 
 			//test one by one as we climb up the complexity ladder
 			//tuple trip = make_tuple_from_fusion(triple);
-			tuple trip;
+			py::tuple trip;
 			cpp_2_py(triple, &trip);
 
 			py_2_cpp(trip, &empty_triple);
@@ -239,7 +276,7 @@ int main(int argc, char* argv[])
 				cout << "nested triple_vec_map conversion " << s << endl;
 			}			
 
-			tuple every;
+			py::tuple every;
 			cpp_2_py(everything, &every);
 			//tuple every = make_tuple_from_fusion(everything);
 			py_2_cpp(every, &was_empty);
@@ -313,8 +350,86 @@ int main(int argc, char* argv[])
 				return -1;
 			}
 			*/
+
+			{
+			    PyRun_SimpleString("import os");
+    	    	PyRun_SimpleString("import sys");
+    	    	PyRun_SimpleString("sys.path.append(os.getcwd())");
+
+				py::object test = py::import("py2c");
+				py::dict   params = extract<dict>(test.attr("params"));
+				map<string, variant<
+								vector<long>
+								,vector<string> 
+							> 
+					> target;
+				py_2_cpp(params, &target);
+				long value = boost::get<vector<long> >(target["one"])[0];
+				if (value != 23) {
+					cerr << "got " << value << " expected 23" << endl;
+					return -1;
+				}
+				string str = boost::get<vector<string> >(target["two"])[0];
+				if (str != "opaque") {
+					cerr << "got " << str << " expected opaque" << endl;
+					return -1;
+				}
+				vector<long> v1 = boost::get<vector<long> >(target["three"]);
+				if (sum(v1) != 10) {
+					cerr << "got " << sum(v1) << " expected 10" << endl;
+					return -1;
+				}
+				if (argc > 1)
+					cout << "variant check 1 successfull" << endl;
+
+
+				typedef variant<
+								map<double,long>, fu::tuple<long,long,long,long> 
+							   > Variants;
+
+				map<string, 
+					variant<
+						vector<long>,
+						vector<Variants>
+					> 
+				> target2;
+
+								
+				py::dict   nested_variants = extract<dict>(test.attr("nested_variants"));
+				py_2_cpp(nested_variants, &target2);
+
+
+				vector<long> v2 = boost::get<vector<long> >(target2["one"]);
+				if (sum(v2) != 91) {
+					cerr << "variant check 2 failed expected 91 got " << sum(v2) << endl;
+					return -1;
+				}
+				if (argc > 1)
+					cout << "variant check 2 successful" << endl;
+
+				//deconstruct it step by step
+				vector<Variants> vv = get<vector<Variants> >(target2["two"]);
+				map<double,long> m1 = get<map<double,long> >(vv[0]);
+
+				if (m1[3.4] + m1[4.7] != 8) {
+					cerr << "variant check 3  failed expected 8 got " << m1[3.4] + m1[4.7] << endl;
+					return -1;
+				}
+
+				//deconstruct
+				fu::tuple<long,long,long,long> t1 = get<fu::tuple<long,long,long,long> >(vv[1]);
+				long summary = 0;
+				fu::for_each(t1, Sum<long>(&summary));
+				if (summary != 10){
+					cerr << "variant check 4  failed expected 10 got " << summary << endl;
+					return -1;
+				}
+
+			}
+
+			
 			if (argc > 1)
-				cout << "GOT ALL EVERYTHING DATA" << endl;
+				cout << "GOT ALL EVERYTHING DATA DUDE" << endl;
 			
 		}
 		

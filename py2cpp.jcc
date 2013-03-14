@@ -1,0 +1,41 @@
+jx_browser_data 84
+# project tree
+0 "root"
+T
+1 "New group"
+T
+2 "py2c_test.cpp"
+F
+"./py2c_test.cpp"
+T
+2 "py2c.py"
+F
+"./py2c.py"
+T
+2 "py2cpp.hpp"
+F
+"./py2cpp.hpp"
+F
+T
+1 "New group"
+T
+2 "CMakeLists.txt"
+F
+"./CMakeLists.txt"
+F
+F
+# tasks
+4
+"echo Makefile must be updated manually"
+F
+# build settings
+0
+T
+"py2cpp"
+""
+"make -k all"
+# search paths
+T "./" T
+F
+# C preprocessor
+F

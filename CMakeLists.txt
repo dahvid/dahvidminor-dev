@@ -15,8 +15,8 @@ message("CMAKE_MODULE_PATH=" ${CMAKE_MODULE_PATH})
 message("CMAKE_SYSTEM_LIBRARY_PATH "  ${CMAKE_SYSTEM_LIBRARY_PATH})
 
 
-SET(CMAKE_CXX_COMPILER /usr/local/gcc-4.7.0/bin/g++)
-SET(CMAKE_CC_COMPILER /usr/local/gcc-4.7.0/bin/gcc)
+#SET(CMAKE_CXX_COMPILER /usr/local/gcc-4.7.0/bin/g++)
+#SET(CMAKE_CC_COMPILER /usr/local/gcc-4.7.0/bin/gcc)
 
 IF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	message("found Apple")
@@ -24,7 +24,7 @@ IF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	SET(CMAKE_CC_COMPILER  /opt/local/bin/gcc-mp-4.7)
 ENDIF() 
 
-SET(CMAKE_CXX_FLAGS "-std=c++0x")
+#SET(CMAKE_CXX_FLAGS "-std=c++0x")
 
 set(EXECUTABLE_OUTPUT_PATH  ${CMAKE_SOURCE_DIR})
 
@@ -52,7 +52,8 @@ message("found Python libraries "  ${PYTHON_LIBRARIES})
 message("found Python includes "  ${PYTHON_INCLUDE_PATH})
 
 IF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-	set(BOOST_ROOT /product/grape/data/boosts/1_48_rhe6) 
+	#set(BOOST_ROOT /product/grape/data/boosts/1_48_rhe6) 1_45_cent5.5
+	set(BOOST_ROOT /product/grape/data/boosts/1_53_cent5.5) 
 	add_definitions(-Dlinux)
 ENDIF()
 
@@ -66,9 +67,9 @@ foreach(item ${Boost_LIBRARIES})
 endforeach()
 
 message("found boost includes "  ${Boost_INCLUDE_DIRS})
+#add_definitions(-DBOOST_VARIANT_AUX_BROKEN_CONSTRUCTOR_TEMPLATE_ORDERING)
 
 set(Internal_Boost_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}; ${CMAKE_SOURCE_DIR}/boost)
-
 include_directories( ${Boost_INCLUDE_DIRS} ${PUBLIC_INCLUDES} ${CMAKE_SOURCE_DIR} ${PYTHON_INCLUDE_PATH} ${Internal_Boost_INCLUDE_DIRS} )
 add_executable(py2c_test py2c_test.cpp)
 target_link_libraries(py2c_test ${Boost_LIBRARIES} ${PYTHON_LIBRARIES})
