@@ -40,18 +40,18 @@ DEALINGS IN THE SOFTWARE.
 #include <boost/fusion/algorithm/iteration/for_each.hpp>
 #include <boost/fusion/include/is_sequence.hpp>
 #include <boost/fusion/include/size.hpp>
-#include <boost/variant.hpp>
-#include <boost/utility.hpp>
 #include <boost/python/stl_iterator.hpp>
 #include <boost/fusion/container.hpp>
+#include <boost/fusion/tuple.hpp>
 #include <boost/type_traits.hpp>
 #include <boost/mpl/bool.hpp>
+#include <boost/variant.hpp>
+#include <boost/utility.hpp>
 #include <functional>
 #include <iostream>
 #include <utility>
 #include <vector>
 #include <string>
-#include <boost/fusion/tuple.hpp>
 #include <list>
 #include <map>
 
@@ -296,17 +296,16 @@ inline const char* getPyTypeString(const object& element)
 
 struct XValueError {};
 
-
-class variant_parser : public boost::static_visitor<>
-{
-public:
-	template<class T>
-	void operator()(const string& s)
-	{
-		
+//assignment statement that disappears if it's not possible
+struct invisible_assign {
+	template <class T, class U>
+	    typename enable_if<typename is_same<T,U>::type>::type
+	operator() (const T& from, U& to) const
+	{ 
+	    to = from;
 	}
-}
 
+};
 
 class value_parser
 {
@@ -315,61 +314,64 @@ public:
     m_py_object(t)
     {}
 
-  template <class T>
-        typename enable_if<typename is_variant<T>::type>::type
-    operator() (T& c_object) const
-    { 
-    	/*
-    	//figure out what kind of variant it is
-    	extract<long> get_long(m_py_object);
-    	extract<double> get_double(m_py_object);
-    	extract<string> get_string(m_py_object);
-    	extract<list>   get_list(m_py_object);
-    	extract<dict>   get_dict(m_py_object);
-    	extract<tuple>   get_tuple(m_py_object);
-    	
-        if (get_long.check()) {
-             //extract only works if there is a lhs
-             c_object = get_long();
-        }
-        else if (get_double.check()) {
-             //extract only works if there is a lhs
-             c_object = get_double();
-         }
-        else if (get_string.check()) {
-             c_object = get_string();
-        }
-        else if (get_list.check()) {
-        	value_parser parse(get_list());
-        	parse(c_object);
-        }
-        else if (get_dict.check()) {
-        	value_parser parse(get_dict());
-        	parse(c_object);
-        }
-        else if (get_tuple.check()) {
-        	value_parser parse(get_tuple());
-        	parse(c_object);
-        }
-        else {
-            cerr << "found unknown variant type " << Py_TYPE(m_py_object.ptr())->tp_name << endl;
-            throw XValueError();
-        }
-        */
-        boost::apply_visitor(variant_parser(), c_object);
-    }
+    invisible_assign assign;
 
-  	template <class T>
-        typename enable_if<typename fusion::traits::is_sequence<T>::type>::type
-    operator() (T& c_object) const
-    { 
-        
-    	extract<tuple>  get_tuple(m_py_object);
-    	if (!get_tuple.check()) {
-			throw XValueError();
-    	}
-        make_fusion_from_tuple(get_tuple(), &c_object); 
-    }
+	  template <class T>
+	        typename enable_if<typename is_variant<T>::type>::type
+	    operator() (T& c_object) const
+	    { 
+	    	 //because the target cobject is a variant we need to query the python object to know what it is
+	    	 //and assign it to the cobject, it won't work to read the cobject first
+	    	 //however we need a way to only instantiate the versions that are valid variants of cobject
+	    	 //otherwise it won't compile
+	    	 
+	    	//figure out what kind of variant it is
+ 	    	extract<long> get_long(m_py_object);
+	    	extract<double> get_double(m_py_object);
+	    	extract<string> get_string(m_py_object);
+	    	extract<list>   get_list(m_py_object);
+	    	extract<dict>   get_dict(m_py_object);
+	    	extract<tuple>   get_tuple(m_py_object);
+	    	 
+	        if (get_long.check()) {
+	             //extract only works if there is a lhs
+	            assign(get_long(), c_object);
+	        }
+	        else if (get_double.check()) {
+	             //extract only works if there is a lhs
+	             assign(get_double(), c_object);
+	        }
+	        else if (get_string.check()) {
+	             assign(get_string(), c_object);
+	        }
+	        
+	        if (get_list.check()) {
+ 	            //assign(get_list(), c_object); ???don't know which variant type to force here
+	        }
+	        else if (get_dict.check()) {
+ 	            //assign(get_dict(), c_object);
+	        }
+	        else if (get_tuple.check()) {
+ 	            //assign(get_tuple(), c_object);
+	        }
+	        else {
+	            cerr << "found unknown variant type " << Py_TYPE(m_py_object.ptr())->tp_name << endl;
+	            throw XValueError();
+	        }
+	         
+	    }
+
+	  	template <class T>
+	        typename enable_if<typename fusion::traits::is_sequence<T>::type>::type
+	    operator() (T& c_object) const
+	    { 
+	        
+	    	extract<tuple>  get_tuple(m_py_object);
+	    	if (!get_tuple.check()) {
+				throw XValueError();
+	    	}
+	        make_fusion_from_tuple(get_tuple(), &c_object); 
+	    }
 
 	    //check if mapped type is a vector
 	    template <typename T>
@@ -777,7 +779,7 @@ class py2cpp {
 public:
 	//check if mapped type is fusion tuple
 	template <class T>
-		typename enable_if<typename fusion::traits::is_sequence<T>::type>::typec_object = extract<T>(m_py_object); 
+		typename enable_if<typename fusion::traits::is_sequence<T>::type>::type 
 			operator() (const object& mPyObject, T* s) const
 				{ make_fusion_from_tuple(mPyObject, s); }
 
