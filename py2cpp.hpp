@@ -44,6 +44,7 @@ DEALINGS IN THE SOFTWARE.
 #include <boost/fusion/container.hpp>
 #include <boost/fusion/tuple.hpp>
 #include <boost/type_traits.hpp>
+#include <boost/mpl/count.hpp>
 #include <boost/mpl/bool.hpp>
 #include <boost/variant.hpp>
 #include <boost/utility.hpp>
@@ -60,6 +61,7 @@ DEALINGS IN THE SOFTWARE.
 
 using kmt::is_variant;
 using boost::fusion::tuple;
+using boost::mpl::count;
 
 //must discriminate between, vector, map, fusion::sequence and {string,double,long, bool}
 
@@ -297,15 +299,32 @@ inline const char* getPyTypeString(const object& element)
 struct XValueError {};
 
 //assignment statement that disappears if it's not possible
+ 
 struct invisible_assign {
+
+	 
+
 	template <class T, class U>
-	    typename enable_if<typename is_same<T,U>::type>::type
+	typename enable_if<typename count<typename U::types, T>::type>::type
 	operator() (const T& from, U& to) const
 	{ 
 	    to = from;
 	}
 
+    template <class T, class U>
+        typename enable_if<typename is_python_convertable<T>::type>::type
+	operator() (const T& from, U& to) const
+	{ 
+	    to = get<T>(from);
+	}
+
 };
+
+struct extract_variant : public static_visitor<>
+{
+	
+};
+
 
 class value_parser
 {
@@ -314,12 +333,14 @@ public:
     m_py_object(t)
     {}
 
-    invisible_assign assign;
 
 	  template <class T>
 	        typename enable_if<typename is_variant<T>::type>::type
 	    operator() (T& c_object) const
 	    { 
+			 invisible_assign assign;
+	    	  
+	    	 
 	    	 //because the target cobject is a variant we need to query the python object to know what it is
 	    	 //and assign it to the cobject, it won't work to read the cobject first
 	    	 //however we need a way to only instantiate the versions that are valid variants of cobject
@@ -334,24 +355,45 @@ public:
 	    	extract<tuple>   get_tuple(m_py_object);
 	    	 
 	        if (get_long.check()) {
-	             //extract only works if there is a lhs
-	            assign(get_long(), c_object);
-	        }
+	        	value_parser parse(m_py_object);
+	        	parse(get<long>(c_object));
+	        }	        
 	        else if (get_double.check()) {
-	             //extract only works if there is a lhs
-	             assign(get_double(), c_object);
+	        	value_parser parse(m_py_object);
+	        	parse(get<double>(c_object));
 	        }
 	        else if (get_string.check()) {
-	             assign(get_string(), c_object);
+	        	value_parser parse(m_py_object);
+	        	parse(get<string>(c_object));
 	        }
-	        
-	        if (get_list.check()) {
+	        else if (get_list.check()) {
+	   
+	        	 //make_vector_from_list(m_py_object, &c_object);
+	        	//need to create the vector of the appropriate type, the only hint we have of the type is the
+	        	//element type
+	        	/*
+			    list    result_list   = extract<list>(m_py_object);
+			    stl_input_iterator<list> begin(result_list), end;
+			    for (;begin != end; ++begin)
+			    {
+					value_parser parse(*begin);
+					parse(
+			    }
+			    */
+			   // vector_inserter insert(get_list());
+			    
+	        	//value_parser parse(get_list());
+	        	//parse(c_object);
  	            //assign(get_list(), c_object); ???don't know which variant type to force here
 	        }
 	        else if (get_dict.check()) {
+	        	//value_parser parse(get_dict());
+	        	//parse(c_object);
  	            //assign(get_dict(), c_object);
 	        }
 	        else if (get_tuple.check()) {
+	        	//value_parser parse(get_tuple());
+	        	//parse(c_object);
  	            //assign(get_tuple(), c_object);
 	        }
 	        else {
