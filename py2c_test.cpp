@@ -360,14 +360,15 @@ int main(int argc, char* argv[])
 
 				py::object test = py::import("py2c");
 				py::dict   params = extract<dict>(test.attr("params"));
-				map<string, variant<
-								vector<long>
-								,vector<string> 
-							> 
-					> target;
+				typedef variant<vector<long>,vector<string> > StringOrLongVec;
+				map<string, StringOrLongVec> target;
 				
 				py_2_cpp(params, &target);
-				long value = boost::get<vector<long> >(target["one"])[0];
+				//StringOrLongVec solv_instance = target["one"];
+				
+				vector<long> long_vec = boost::get<vector<long> >(target["one"]);
+				long value = long_vec[0];
+				//long value = boost::get<vector<long> >(target["one"])[0];
 				if (value != 23) {
 					cerr << "got " << value << " expected 23" << endl;
 					return -1;

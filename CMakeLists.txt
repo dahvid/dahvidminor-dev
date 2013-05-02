@@ -24,7 +24,8 @@ IF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	SET(CMAKE_CC_COMPILER  /opt/local/bin/gcc-mp-4.7)
 ENDIF() 
 
-#SET(CMAKE_CXX_FLAGS "-std=c++0x")
+
+SET(CMAKE_CXX_FLAGS "-std=c++0x")
 
 set(EXECUTABLE_OUTPUT_PATH  ${CMAKE_SOURCE_DIR})
 
@@ -74,6 +75,7 @@ include_directories( ${Boost_INCLUDE_DIRS} ${PUBLIC_INCLUDES} ${CMAKE_SOURCE_DIR
 add_executable(py2c_test py2c_test.cpp)
 target_link_libraries(py2c_test ${Boost_LIBRARIES} ${PYTHON_LIBRARIES})
 
+add_subdirectory(exp)
 
 
 

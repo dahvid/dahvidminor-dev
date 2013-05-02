@@ -127,6 +127,7 @@ list make_list_from_vector(const std::vector<T>& v)
 }
 
 
+
 template <class Sequence>
 tuple make_tuple_from_fusion(const Sequence& s)
 {
@@ -134,6 +135,8 @@ tuple make_tuple_from_fusion(const Sequence& s)
     fusion::for_each(s, tuple_maker(result));
     return result;
 }
+
+
 
 
 template<class T, class U>
@@ -299,7 +302,7 @@ inline const char* getPyTypeString(const object& element)
 struct XValueError {};
 
 //assignment statement that disappears if it's not possible
- 
+/*
 struct invisible_assign {
 
 	 
@@ -319,11 +322,28 @@ struct invisible_assign {
 	}
 
 };
+*/
+/*
+tempalte<class Return>
+struct type_builder {
+	type_builder(const object& o) : object(o) {} const object& o;
 
-struct extract_variant : public static_visitor<>
-{
+	Return type_builder()
+	{
+	
+	}
 	
 };
+
+//builder has to be staically declared
+//???I can't build a builder for each type because they are recursive
+ template<class T>
+auto build_type(const type_builder& builder) -> decltype(builder())
+{
+	auto val = builder();
+	return val;
+}
+*/
 
 
 class value_parser
@@ -333,13 +353,10 @@ public:
     m_py_object(t)
     {}
 
-
 	  template <class T>
 	        typename enable_if<typename is_variant<T>::type>::type
 	    operator() (T& c_object) const
 	    { 
-			 invisible_assign assign;
-	    	  
 	    	 
 	    	 //because the target cobject is a variant we need to query the python object to know what it is
 	    	 //and assign it to the cobject, it won't work to read the cobject first
@@ -367,40 +384,18 @@ public:
 	        	parse(get<string>(c_object));
 	        }
 	        else if (get_list.check()) {
-	   
-	        	 //make_vector_from_list(m_py_object, &c_object);
-	        	//need to create the vector of the appropriate type, the only hint we have of the type is the
-	        	//element type
-	        	/*
-			    list    result_list   = extract<list>(m_py_object);
-			    stl_input_iterator<list> begin(result_list), end;
-			    for (;begin != end; ++begin)
-			    {
-					value_parser parse(*begin);
-					parse(
-			    }
-			    */
-			   // vector_inserter insert(get_list());
-			    
-	        	//value_parser parse(get_list());
-	        	//parse(c_object);
- 	            //assign(get_list(), c_object); ???don't know which variant type to force here
+	        	make_variant_from_list(get_list(), &c_object); 
 	        }
 	        else if (get_dict.check()) {
-	        	//value_parser parse(get_dict());
-	        	//parse(c_object);
- 	            //assign(get_dict(), c_object);
+	        	make_variant_from_dict(get_dict(), &c_object); 
 	        }
 	        else if (get_tuple.check()) {
-	        	//value_parser parse(get_tuple());
-	        	//parse(c_object);
- 	            //assign(get_tuple(), c_object);
+	        	make_variant_from_tuple(get_tuple(), &c_object); 
 	        }
 	        else {
 	            cerr << "found unknown variant type " << Py_TYPE(m_py_object.ptr())->tp_name << endl;
 	            throw XValueError();
 	        }
-	         
 	    }
 
 	  	template <class T>
@@ -443,9 +438,10 @@ public:
         }
     
 private:
-
+    
     const object&  m_py_object;
 };
+
 
 
 template <class Sequence>
@@ -557,6 +553,31 @@ bool make_vector_from_list(const object& pylist, std::vector<T>* outputs)
 
  	return checkedReturn("make_vector_from_list");
 }
+
+template<class T>
+bool make_variant_from_list(const list& pylist, T* outputs)
+{
+	checkedEntrance("make_vector_from_variant");
+	
+
+    for (int i=0; i< len(pylist); i++)
+    {
+        value_parser parser(pylist[i]); //sets the element
+        any value;
+		try {
+        	parser(value); //copies it into a c value, or invokes recursive procedure
+        }
+        catch(...) {
+        	return false;
+        }
+        outputs->push_back(value);
+    }
+
+ 	return checkedReturn("make_vector_from_variant");
+}
+
+
+
 
 class list_maker
 {
@@ -752,6 +773,8 @@ struct vector_inserter
     }    
 };
 
+
+
  
 template<class T>
 bool tuple_to_variant_list(const object& obj_ptr, std::vector<T>* outputs)
@@ -792,6 +815,8 @@ bool tuple_to_variant_list(const object& obj_ptr, std::vector<T>* outputs)
 	}
  	return checkedReturn("tuple_to_variant_list");
 }
+
+
  
 inline std::string convertToString(object pyobject)
 {
